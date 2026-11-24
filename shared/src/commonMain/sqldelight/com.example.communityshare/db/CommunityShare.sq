@@ -1,0 +1,56 @@
+-- Table for available neighborhood items
+CREATE TABLE CommunityItemEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL,
+    distanceKm REAL NOT NULL,
+    rating REAL NOT NULL,
+    ownerName TEXT NOT NULL,
+    description TEXT NOT NULL,
+    pickupRules TEXT NOT NULL,
+    isAvailable INTEGER NOT NULL DEFAULT 1
+);
+
+-- Table for tracking borrow requests offline
+CREATE TABLE BorrowRequestEntity (
+    requestId TEXT NOT NULL PRIMARY KEY,
+    itemId TEXT NOT NULL,
+    itemTitle TEXT NOT NULL,
+    status TEXT NOT NULL,
+    returnBy TEXT NOT NULL,
+    isSynced INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (itemId) REFERENCES CommunityItemEntity(id) ON DELETE CASCADE
+);
+
+-- Queries for CommunityItemEntity
+
+selectAllItems:
+SELECT * FROM CommunityItemEntity;
+
+selectItemsByCategory:
+SELECT * FROM CommunityItemEntity
+WHERE category = ?;
+
+insertOrReplaceItem:
+INSERT OR REPLACE INTO CommunityItemEntity (
+    id, title, category, distanceKm, rating, ownerName, description, pickupRules, isAvailable
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Queries for BorrowRequestEntity
+
+selectAllRequests:
+SELECT * FROM BorrowRequestEntity;
+
+insertBorrowRequest:
+INSERT OR REPLACE INTO BorrowRequestEntity (
+    requestId, itemId, itemTitle, status, returnBy, isSynced
+) VALUES (?, ?, ?, ?, ?, ?);
+
+updateRequestStatus:
+UPDATE BorrowRequestEntity
+SET status = ?, isSynced = 0
+WHERE requestId = ?;
+
+deleteBorrowRequest:
+DELETE FROM BorrowRequestEntity
+WHERE requestId = ?;
