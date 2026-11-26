@@ -54,3 +54,14 @@ WHERE requestId = ?;
 deleteBorrowRequest:
 DELETE FROM BorrowRequestEntity
 WHERE requestId = ?;
+
+selectUnsyncedRequests:
+SELECT * FROM BorrowRequestEntity WHERE isSynced = 0;
+
+markRequestSynced:
+UPDATE BorrowRequestEntity SET isSynced = 1 WHERE requestId = ?;
+
+upsertBorrowRequest:
+INSERT OR REPLACE INTO BorrowRequestEntity (
+    requestId, itemId, itemTitle, status, returnBy, isSynced
+) VALUES (?, ?, ?, ?, ?, ?);

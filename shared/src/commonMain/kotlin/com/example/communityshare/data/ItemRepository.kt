@@ -3,11 +3,14 @@ package com.example.communityshare.data
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.example.communityshare.db.CommunityShareDatabase
+import com.example.communityshare.network.BorrowRequestDto
+import com.example.communityshare.network.SyncApiService
 import comexamplecommunityshare.db.BorrowRequestEntity
 import comexamplecommunityshare.db.CommunityItemEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 
 class ItemRepository(database: CommunityShareDatabase) {
     private val queries = database.communityShareQueries
@@ -106,5 +109,42 @@ class ItemRepository(database: CommunityShareDatabase) {
             status = newStatus,
             requestId = requestId
         )
+    }
+
+    suspend fun syncRequests(apiService: SyncApiService): Result<Int> = withContext(Dispatchers.IO) {
+        runCatching {
+            val unsynced = queries.selectUnsyncedRequests().executeAsList()
+            var syncedCount = 0
+
+            if (unsynced.isNotEmpty()) {
+                val dtos = unsynced.map { entity ->
+                    BorrowRequestDto(
+                        requestId = entity.requestId,
+                        itemId = entity.itemId,
+                        itemTitle = entity.itemTitle,
+                        status = entity.status,
+                        returnBy = entity.returnBy
+                    )
+                }
+                val pushed = apiService.pushPendingRequest(dtos)
+                if (pushed) {
+                    unsynced.forEach { queries.markRequestSynced(it.requestId) }
+                    syncedCount = unsynced.size
+                }
+            }
+
+            val remoteRequest = apiService.fetchRemoteRequests()
+            remoteRequest.forEach { dto ->
+                queries.upsertBorrowRequest(
+                    requestId = dto.requestId,
+                    itemId = dto.itemId,
+                    itemTitle = dto.itemTitle,
+                    status = dto.status,
+                    returnBy = dto.returnBy,
+                    isSynced = 1L
+                )
+            }
+            syncedCount
+        }
     }
 }
